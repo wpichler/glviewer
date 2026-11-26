@@ -13,6 +13,8 @@ export interface LogViewHandle {
   scrollToTime(ts: number, align?: 'top' | 'center'): Promise<number>
   focus(): void
   topIndex(): number
+  /** Timestamp of the first visible row, if known. */
+  topTime(): number | null
   copySelection(): Promise<void>
 }
 
@@ -215,6 +217,7 @@ export const LogView = forwardRef<LogViewHandle, Props>(function LogView(props, 
       },
       focus: () => viewportRef.current?.focus(),
       topIndex: () => Math.floor(topRef.current),
+      topTime: () => cache.current.get(Math.floor(topRef.current))?.ts ?? null,
       copySelection
     }),
     [scrollToIndex, copySelection]

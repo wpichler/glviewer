@@ -1,7 +1,7 @@
 // In-memory log document: lines plus columnar metadata (timestamps, levels,
 // journal fields), a filtered view and search / time lookup helpers.
 
-import { LEVEL_UNKNOWN, type DocInfo, type DocSource, type FilterSpec, type Level, type Row, type SearchSpec } from '@shared/types'
+import { LEVEL_UNKNOWN, type SortOrder, type DocInfo, type DocSource, type FilterSpec, type Level, type Row, type SearchSpec } from '@shared/types'
 import { NaiveConverter, resolveTz } from './timezone'
 import { NO_OFFSET, detectFormat, getParser, type ParseContext, type ParseOut } from './timestamps'
 import { detectLevel, priFromSyslogPrefix } from './levels'
@@ -118,6 +118,7 @@ export class LogDoc {
 
   private view: Grow<Uint32Array> | null = null
   filter: FilterSpec | null = null
+  order: SortOrder = 'file'
   private filterFn: ((i: number) => boolean) | null = null
   private filterGen = 0
   private naiveCount = 0
@@ -435,34 +436,101 @@ export class LogDoc {
   async setFilter(f: FilterSpec | null, onProgress?: (done: number, total: number) => void): Promise<boolean> {
     const gen = ++this.filterGen
     const fn = f ? this.buildFilterFn(f) : null
-    if (!fn) {
+    const order: SortOrder = f?.order ?? 'file'
+    if (!fn && order === 'file') {
       this.filter = f
       this.filterFn = null
+      this.order = 'file'
       this.view = null
       this.version++
       return true
     }
-    const view = new Grow(Uint32Array, 4096)
+    let view: Grow<Uint32Array> = new Grow(Uint32Array, 4096)
     const n = this.lines.length
-    for (let start = 0; start < n; start += CHUNK) {
-      const end = Math.min(n, start + CHUNK)
-      // the level/ts arrays may have been reallocated while we yielded
-      const chunkFn = this.buildFilterFn(f!)!
-      for (let i = start; i < end; i++) if (chunkFn(i)) view.push(i)
-      if (end < n) {
-        onProgress?.(end, n)
-        await yieldTick()
-        if (gen !== this.filterGen) return false
+    if (!fn) {
+      view.ensure(n)
+      for (let i = 0; i < n; i++) view.arr[i] = i
+      view.len = n
+    } else {
+      for (let start = 0; start < n; start += CHUNK) {
+        const end = Math.min(n, start + CHUNK)
+        // the level/ts arrays may have been reallocated while we yielded
+        const chunkFn = this.buildFilterFn(f!)!
+        for (let i = start; i < end; i++) if (chunkFn(i)) view.push(i)
+        if (end < n) {
+          onProgress?.(end, n)
+          await yieldTick()
+          if (gen !== this.filterGen) return false
+        }
       }
     }
     // lines appended while filtering
-    const fnFinal = this.buildFilterFn(f!)!
-    for (let i = n; i < this.lines.length; i++) if (fnFinal(i)) view.push(i)
+    const fnFinal = fn ? this.buildFilterFn(f!) : null
+    for (let i = n; i < this.lines.length; i++) if (!fnFinal || fnFinal(i)) view.push(i)
+    if (order !== 'file') view = this.sortView(view, order)
     this.filter = f
     this.filterFn = fnFinal
+    this.order = order
     this.view = view
     this.version++
     return true
+  }
+
+  /** Line index of the timestamped line each line belongs to (continuations belong to their parent). */
+  private groupOf(): Uint32Array {
+    const n = this.lines.length
+    const g = new Uint32Array(n)
+    const inh = this.inh.arr
+    let cur = 0
+    for (let i = 0; i < n; i++) {
+      if (!inh[i]) cur = i
+      g[i] = cur
+    }
+    return g
+  }
+
+  /** Reverse the order of groups, keeping the lines inside each group in file order. */
+  private reverseGroups(idx: Uint32Array, group: Uint32Array): Uint32Array {
+    const out = new Uint32Array(idx.length)
+    let o = 0
+    let end = idx.length
+    while (end > 0) {
+      let start = end - 1
+      while (start > 0 && group[idx[start - 1]] === group[idx[end - 1]]) start--
+      for (let k = start; k < end; k++) out[o++] = idx[k]
+      end = start
+    }
+    return out
+  }
+
+  /** Sort a view by timestamp. Lines without a timestamp sort as oldest. */
+  private sortView(view: Grow<Uint32Array>, order: 'asc' | 'desc'): Grow<Uint32Array> {
+    const ts = this.ts.arr
+    const group = this.groupOf()
+    let idx: Uint32Array = view.arr.slice(0, view.len)
+    const key = (i: number): number => {
+      const t = ts[i]
+      return Number.isNaN(t) ? -Infinity : t
+    }
+    let sorted = true
+    for (let k = 1; k < idx.length; k++) {
+      if (key(idx[k]) < key(idx[k - 1])) {
+        sorted = false
+        break
+      }
+    }
+    if (!sorted) {
+      idx.sort((a, b) => {
+        const d = key(a) - key(b)
+        if (d) return d
+        return group[a] - group[b] || a - b
+      })
+    }
+    if (order === 'desc') idx = this.reverseGroups(idx, group)
+    const out = new Grow(Uint32Array, Math.max(1024, idx.length))
+    out.arr.set(idx)
+    out.len = idx.length
+    return out
   }
 
   /** Re-run the current filter (e.g. after time zone change affects time ranges). */
@@ -474,8 +542,23 @@ export class LogDoc {
     if (!this.view) return
     const fn = this.filter ? this.buildFilterFn(this.filter) : null
     this.filterFn = fn
-    if (!fn) return
-    for (let i = from; i < this.lines.length; i++) if (fn(i)) this.view.push(i)
+    if (!fn && this.order === 'file') return
+    if (this.order !== 'desc') {
+      // file order, or oldest first: new lines are the newest, so they go to the end
+      for (let i = from; i < this.lines.length; i++) if (!fn || fn(i)) this.view.push(i)
+      return
+    }
+    // newest first: new lines go to the top
+    const fresh: number[] = []
+    for (let i = from; i < this.lines.length; i++) if (!fn || fn(i)) fresh.push(i)
+    if (!fresh.length) return
+    const top = this.reverseGroups(Uint32Array.from(fresh), this.groupOf())
+    const next = new Grow(Uint32Array, Math.max(1024, this.view.len + top.length))
+    next.arr.set(top)
+    next.arr.set(this.view.arr.subarray(0, this.view.len), top.length)
+    next.len = this.view.len + top.length
+    this.view = next
+    this.version++ // view indices shifted
   }
 
   // ---- search ---------------------------------------------------------------
@@ -519,10 +602,13 @@ export class LogDoc {
     const n = this.viewCount
     let lo = 0, hi = n
     const ts = this.ts.arr
+    const desc = this.order === 'desc'
     while (lo < hi) {
       const mid = (lo + hi) >>> 1
       const x = ts[this.lineIndex(mid)]
-      if (Number.isNaN(x) || x < t) lo = mid + 1
+      // ascending: first entry >= t; descending: first entry <= t
+      const before = desc ? !Number.isNaN(x) && x > t : Number.isNaN(x) || x < t
+      if (before) lo = mid + 1
       else hi = mid
     }
     return Math.min(lo, Math.max(0, n - 1))

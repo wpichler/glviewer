@@ -2,8 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { EMPTY_FILTER, ENCODINGS, LEVEL_NAMES, TIMESTAMP_FORMATS, type DocInfo, type FilterSpec, type Row } from '@shared/types'
 import { api, errMsg } from '../api'
 import { Icon } from '../icons'
-import { formatBytes, formatDuration, formatTs, isValidTz, tzLabel } from '../time'
+import { allTimeZones, formatBytes, formatDuration, formatTs, isValidTz, tzLabel } from '../time'
 import { FilterBar } from './FilterBar'
+import { ComboInput } from './ComboInput'
 import { LogView, formatRowText, type LogViewHandle, type Selection } from './LogView'
 
 export interface PaneViewSettings {
@@ -38,6 +39,7 @@ export function LogPane(props: Props) {
   const viewRef = useRef<LogViewHandle | null>(null)
 
   const [filter, setFilter] = useState<FilterSpec>(EMPTY_FILTER)
+  const order = filter.order ?? 'file'
   const [filterErr, setFilterErr] = useState<string | null>(null)
   const [filtering, setFiltering] = useState(false)
   const [showFilter, setShowFilter] = useState(false)
@@ -80,14 +82,19 @@ export function LogPane(props: Props) {
     setFilter(f)
     setFiltering(true)
     try {
-      const keepTs = selRow?.ts ?? null
+      // keep the selected line (or the top of the view) in place in time;
+      // a new sort order without selection starts at its beginning
+      const orderChanged = (f.order ?? 'file') !== order
+      const keepSel = selRow?.ts ?? null
+      const keepTs = keepSel ?? (orderChanged ? null : (viewRef.current?.topTime() ?? null))
       const ni = await api.setFilter(info.id, f)
       setFilterErr(null)
       setSelection(null)
       setMatchV(null)
       setMatchCount(null)
       props.onInfo(ni)
-      if (keepTs !== null) setTimeout(() => void viewRef.current?.scrollToTime(keepTs, 'center'), 30)
+      if (keepTs !== null) setTimeout(() => void viewRef.current?.scrollToTime(keepTs, keepSel !== null ? 'center' : 'top'), 30)
+      else if (orderChanged) setTimeout(() => viewRef.current?.scrollToIndex(0, 'top'), 30)
     } catch (e) {
       setFilterErr(errMsg(e))
     } finally {
@@ -198,6 +205,20 @@ export function LogPane(props: Props) {
           </button>
         </div>
         <button
+          className={'flat sortbtn' + (order !== 'file' ? ' on accent' : '')}
+          title={
+            order === 'file'
+              ? 'Order: as in the file. Click to sort by time, oldest first'
+              : order === 'asc'
+                ? 'Order: by time, oldest first. Click for newest first'
+                : 'Order: by time, newest first. Click for file order'
+          }
+          onClick={() => void applyFilter({ ...filter, order: order === 'file' ? 'asc' : order === 'asc' ? 'desc' : 'file' })}
+        >
+          <Icon name={order === 'desc' ? 'sort-desc' : 'sort-asc'} />
+          <span className="sortlbl">{order === 'file' ? 'File' : order === 'asc' ? 'Oldest' : 'Newest'}</span>
+        </button>
+        <button
           className={'flat' + (showFilter ? ' on' : '') + (filter !== EMPTY_FILTER && (filter.include || filter.exclude || filter.levels || filter.from || filter.to || filter.unit || filter.host) ? ' accent' : '')}
           title="Filter (Ctrl+L)"
           onClick={() => setShowFilter(!showFilter)}
@@ -249,13 +270,13 @@ export function LogPane(props: Props) {
                     </label>
                     <label className="field">
                       <span>Log time zone</span>
-                      <input
-                        list="tz-list"
+                      <ComboInput
                         className={isValidTz(tzInput) ? '' : 'invalid'}
                         value={tzInput}
-                        onChange={(e) => {
-                          setTzInput(e.target.value)
-                          if (isValidTz(e.target.value) && e.target.value) void change(() => api.setSourceTz(info.id, e.target.value))
+                        options={allTimeZones()}
+                        onChange={(v) => {
+                          setTzInput(v)
+                          if (isValidTz(v) && v) void change(() => api.setSourceTz(info.id, v))
                         }}
                       />
                       <small>
@@ -337,7 +358,7 @@ export function LogPane(props: Props) {
         currentMatch={matchV}
         syncMark={props.syncMark}
         selection={selection}
-        startAtEnd={isJournal}
+        startAtEnd={isJournal && order !== 'desc'}
         onSelect={setSelection}
         onSync={(ts, align) => {
           if (props.synced) props.onSync(ts, align)

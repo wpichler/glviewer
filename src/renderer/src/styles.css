@@ -1166,3 +1166,43 @@ input[type='checkbox'] {
   font-size: 12px;
   white-space: pre-wrap;
 }
+
+/* ---- combobox (replaces <datalist>) ---------------------------------------- */
+.combo-pop {
+  position: fixed;
+  z-index: 500;
+  overflow-y: auto;
+  background: var(--popover-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 4px;
+  font-size: 13px;
+}
+.combo-item {
+  padding: 4px 10px;
+  border-radius: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 20px;
+}
+.combo-item.current {
+  font-weight: 700;
+}
+.combo-item.active {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.combo-more {
+  padding: 6px 10px 4px;
+  color: var(--dim);
+  font-size: 12px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+.sortbtn .sortlbl {
+  font-size: 12px;
+  font-weight: 600;
+}

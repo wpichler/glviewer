@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { BootInfo, HostProfile, JournalQuery, PromptRequest, SyslogConfig } from '@shared/types'
 import { api, errMsg } from '../api'
-import { formatTs } from '../time'
+import { allTimeZones, formatTs } from '../time'
+import { ComboInput } from './ComboInput'
 
 export function Dialog(props: { title: string; children: ReactNode; onClose(): void; footer: ReactNode; wide?: boolean }) {
   return (
@@ -116,11 +117,15 @@ export function JournalDialog(props: {
                 <button onClick={() => setUnits(units.filter((x) => x !== u))}>×</button>
               </span>
             ))}
-            <input
-              list="journal-units"
+            <ComboInput
               placeholder={units.length ? '' : 'all units (type to add, e.g. sshd.service)'}
               value={unitInput}
-              onChange={(e) => setUnitInput(e.target.value)}
+              options={knownUnits.filter((u) => !units.includes(u))}
+              onChange={setUnitInput}
+              onPick={(v) => {
+                setUnits([...new Set([...units, v])])
+                setUnitInput('')
+              }}
               onKeyDown={(e) => {
                 if ((e.key === 'Enter' || e.key === ',') && unitInput.trim()) {
                   e.preventDefault()
@@ -130,11 +135,6 @@ export function JournalDialog(props: {
                 } else if (e.key === 'Backspace' && !unitInput && units.length) setUnits(units.slice(0, -1))
               }}
             />
-            <datalist id="journal-units">
-              {knownUnits.map((u) => (
-                <option key={u} value={u} />
-              ))}
-            </datalist>
           </div>
         </div>
         <div className="row2">
@@ -387,7 +387,7 @@ export function SyslogDialog(props: { initial: SyslogConfig; platform: string; o
           </label>
           <label className="field">
             <span>Time zone of senders</span>
-            <input list="tz-list" value={cfg.messageTz} disabled={cfg.timeSource !== 'message'} onChange={(e) => set({ messageTz: e.target.value })} />
+            <ComboInput value={cfg.messageTz} options={allTimeZones()} disabled={cfg.timeSource !== 'message'} onChange={(v) => set({ messageTz: v })} />
             <small>For classic syslog timestamps without UTC offset</small>
           </label>
         </div>

@@ -35,6 +35,8 @@ const P: Record<string, string> = {
   'arrow-bottom': 'M8 2.5v9M4.5 8l3.5 3.5l3.5-3.5M3 13.5h10',
   columns: 'M2.5 3.5h11M2.5 8h11M2.5 12.5h11M6 3.5v9',
   copy: 'M5.5 5.5h8v8h-8zM10.5 5.5v-3h-8v8h3',
+  'sort-asc': 'M4 13V3M1.5 5.5L4 3l2.5 2.5M8.5 4h2M8.5 8h4M8.5 12h6',
+  'sort-desc': 'M4 3v10M1.5 10.5L4 13l2.5-2.5M8.5 4h6M8.5 8h4M8.5 12h2',
   antenna: 'M8 9v5.5M5.5 14.5h5M8 7.5a1 1 0 1 1 0 .01M5.2 4.7a4 4 0 0 0 0 5.6M10.8 4.7a4 4 0 0 1 0 5.6M3.1 2.6a7 7 0 0 0 0 9.8M12.9 2.6a7 7 0 0 1 0 9.8'
 }
 

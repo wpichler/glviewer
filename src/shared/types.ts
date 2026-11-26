@@ -63,6 +63,9 @@ export interface Row {
   pid?: string
 }
 
+/** View order: as in the file / by time, oldest first / by time, newest first. */
+export type SortOrder = 'file' | 'asc' | 'desc'
+
 export interface FilterSpec {
   include: string
   exclude: string
@@ -76,6 +79,8 @@ export interface FilterSpec {
   unit?: string
   /** Journal only: substring match on hostname. */
   host?: string
+  /** Order of the view (default: file order). */
+  order?: SortOrder
 }
 
 export const EMPTY_FILTER: FilterSpec = { include: '', exclude: '', regex: false, caseSensitive: false }

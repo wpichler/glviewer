@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { type DocInfo, type FilterSpec, type Level } from '@shared/types'
 import { Icon } from '../icons'
+import { ComboInput } from './ComboInput'
 import { fromLocalInput, toLocalInput } from '../time'
 import { api } from '../api'
 
@@ -125,7 +126,7 @@ export function FilterBar({ info, filter, displayTz, selectedTs, onChange, error
             setExc('')
             setUnit('')
             setHost('')
-            onChange({ include: '', exclude: '', regex: filter.regex, caseSensitive: filter.caseSensitive })
+            onChange({ include: '', exclude: '', regex: filter.regex, caseSensitive: filter.caseSensitive, order: filter.order })
           }}
         >
           Clear
@@ -175,37 +176,37 @@ export function FilterBar({ info, filter, displayTz, selectedTs, onChange, error
         <div className="frow">
           <div className="entry grow">
             <span className="lbl">{info.source.kind === 'syslog' ? 'App' : 'Unit'}</span>
-            <input
-              list={'units-' + info.id}
+            <ComboInput
               placeholder={info.source.kind === 'syslog' ? 'app name or facility (substring)' : 'unit or identifier (substring)'}
               value={unit}
-              onChange={(e) => {
-                setUnit(e.target.value)
-                debounced({ unit: e.target.value })
+              options={units}
+              onChange={(v) => {
+                setUnit(v)
+                debounced({ unit: v })
+              }}
+              onPick={(v) => {
+                if (timer.current) window.clearTimeout(timer.current)
+                setUnit(v)
+                onChange({ ...latest.current, unit: v })
               }}
             />
-            <datalist id={'units-' + info.id}>
-              {units.slice(0, 2000).map((u) => (
-                <option key={u} value={u} />
-              ))}
-            </datalist>
           </div>
           <div className="entry grow">
             <span className="lbl">Host</span>
-            <input
-              list={'hosts-' + info.id}
+            <ComboInput
               placeholder="hostname (substring)"
               value={host}
-              onChange={(e) => {
-                setHost(e.target.value)
-                debounced({ host: e.target.value })
+              options={hosts}
+              onChange={(v) => {
+                setHost(v)
+                debounced({ host: v })
+              }}
+              onPick={(v) => {
+                if (timer.current) window.clearTimeout(timer.current)
+                setHost(v)
+                onChange({ ...latest.current, host: v })
               }}
             />
-            <datalist id={'hosts-' + info.id}>
-              {hosts.map((u) => (
-                <option key={u} value={u} />
-              ))}
-            </datalist>
           </div>
         </div>
       )}

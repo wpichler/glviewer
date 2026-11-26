@@ -6,6 +6,7 @@ import { allTimeZones, isValidTz, tzLabel } from './time'
 import { Sidebar, type OpenTarget } from './components/Sidebar'
 import { LogPane } from './components/LogPane'
 import type { LogViewHandle } from './components/LogView'
+import { ComboInput } from './components/ComboInput'
 import { HostDialog, JournalDialog, PromptDialog, SyslogDialog } from './components/Dialogs'
 
 interface Pane {
@@ -331,14 +332,14 @@ export default function App() {
           {busy > 0 && <span className="spinner" title="Loading…" />}
           <label className="tzpicker" title={'Display time zone: ' + tzLabel(settings.displayTz)}>
             <Icon name="clock" />
-            <input
-              list="tz-list"
+            <ComboInput
               className={isValidTz(tzInput) ? '' : 'invalid'}
               value={tzInput}
+              options={allTimeZones()}
               onFocus={(e) => e.target.select()}
-              onChange={(e) => {
-                setTzInput(e.target.value)
-                if (e.target.value && isValidTz(e.target.value)) updateSettings({ displayTz: e.target.value })
+              onChange={(v) => {
+                setTzInput(v)
+                if (v && isValidTz(v)) updateSettings({ displayTz: v })
               }}
             />
           </label>
@@ -480,12 +481,6 @@ export default function App() {
           })}
         </div>
       </div>
-
-      <datalist id="tz-list">
-        {allTimeZones().map((z) => (
-          <option key={z} value={z} />
-        ))}
-      </datalist>
 
       {journalDlg && (
         <JournalDialog

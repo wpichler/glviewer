@@ -131,3 +131,36 @@ test('known_hosts hashed + plain matching', () => {
   assert.equal(checkKnownHosts([f], 'plain.example', 22, other), 'mismatch')
   assert.equal(checkKnownHosts([f], 'new.example', 22, key), 'unknown')
 })
+
+test('sort by timestamp keeps continuation lines with their entry', async () => {
+  const d = new LogDoc({ kind: 'file', path: '/x' }, 'x')
+  d.refMs = ctx.refMs
+  d.sourceTz = 'UTC'
+  d.setTextLines([
+    '2026-11-26 10:00:20 INFO c',
+    '2026-11-26 10:00:00 INFO a',
+    '2026-11-26 10:00:10 ERROR b',
+    '  at stack 1',
+    '  at stack 2',
+    '2026-11-26 10:00:10 INFO b2'
+  ])
+  const texts = () => d.rows(0, d.viewCount).map((r) => r.text.replace(/^2026-11-26 10:00:\d\d /, ''))
+  await d.setFilter({ include: '', exclude: '', regex: false, caseSensitive: false, order: 'asc' })
+  assert.deepEqual(texts(), ['INFO a', 'ERROR b', '  at stack 1', '  at stack 2', 'INFO b2', 'INFO c'])
+  await d.setFilter({ include: '', exclude: '', regex: false, caseSensitive: false, order: 'desc' })
+  assert.deepEqual(texts(), ['INFO c', 'INFO b2', 'ERROR b', '  at stack 1', '  at stack 2', 'INFO a'])
+  // newest first: first entry at or before the given time
+  assert.equal(d.findTime(Date.UTC(2026, 10, 26, 10, 0, 15)), 1)
+  // with a filter: errors only (continuation lines inherit the level)
+  await d.setFilter({ include: '', exclude: '', regex: false, caseSensitive: false, levels: [3], order: 'desc' })
+  assert.deepEqual(texts(), ['ERROR b', '  at stack 1', '  at stack 2'])
+  // following: new lines go to the top when sorted newest first
+  await d.setFilter({ include: '', exclude: '', regex: false, caseSensitive: false, order: 'desc' })
+  const v = d.info().version
+  d.appendTextLines(['2026-11-26 10:00:30 WARN d', '  detail'])
+  assert.deepEqual(texts().slice(0, 3), ['WARN d', '  detail', 'INFO c'])
+  assert.ok(d.info().version > v)
+  // back to file order
+  await d.setFilter({ include: '', exclude: '', regex: false, caseSensitive: false, order: 'file' })
+  assert.equal(d.row(0).text, '2026-11-26 10:00:20 INFO c')
+})
