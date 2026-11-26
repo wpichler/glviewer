@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import type { BootInfo, HostProfile, JournalQuery, PromptRequest } from '@shared/types'
+import type { BootInfo, HostProfile, JournalQuery, PromptRequest, SyslogConfig } from '@shared/types'
 import { api, errMsg } from '../api'
 import { formatTs } from '../time'
 
@@ -309,6 +309,104 @@ export function PromptDialog(props: { req: PromptRequest; onDone(): void }) {
             />
           </label>
         ))}
+      </div>
+    </Dialog>
+  )
+}
+
+// ---- syslog receiver ----------------------------------------------------------------
+
+export function SyslogDialog(props: { initial: SyslogConfig; platform: string; onStart(cfg: SyslogConfig): void; onClose(): void }) {
+  const [cfg, setCfg] = useState<SyslogConfig>(props.initial)
+  const [addrs, setAddrs] = useState<{ name: string; address: string; family: string }[]>([])
+  useEffect(() => {
+    api.netAddresses().then(setAddrs, () => {})
+  }, [])
+  const set = (p: Partial<SyslogConfig>): void => setCfg({ ...cfg, ...p })
+  const valid = (cfg.udp || cfg.tcp) && cfg.port > 0 && cfg.port < 65536 && cfg.address.trim() !== ''
+  const v4 = addrs.filter((a) => a.family === 'IPv4')
+  const example = v4[0]?.address ?? '<this-computer>'
+  const privileged = cfg.port < 1024 && props.platform !== 'win32'
+  return (
+    <Dialog
+      title="Syslog receiver"
+      onClose={props.onClose}
+      wide
+      footer={
+        <>
+          <button onClick={props.onClose}>Cancel</button>
+          <button className="suggested" disabled={!valid} onClick={() => props.onStart(cfg)}>
+            Start receiving
+          </button>
+        </>
+      }
+    >
+      <div className="form" onKeyDown={(e) => e.key === 'Enter' && valid && props.onStart(cfg)}>
+        <p className="msg dim">
+          Receive log messages from routers, servers and other devices (RFC 5424 and BSD syslog, UDP and TCP). Messages are shown live and can be searched,
+          filtered and exported like any other log.
+        </p>
+        <div className="row2">
+          <label className="field narrow">
+            <span>Port</span>
+            <input type="number" min={1} max={65535} value={cfg.port} onChange={(e) => set({ port: Number(e.target.value) })} />
+          </label>
+          <label className="field">
+            <span>Listen on</span>
+            <select value={cfg.address} onChange={(e) => set({ address: e.target.value })}>
+              <option value="0.0.0.0">All IPv4 interfaces (0.0.0.0)</option>
+              <option value="::">All interfaces, IPv4 + IPv6 (::)</option>
+              <option value="127.0.0.1">This computer only (127.0.0.1)</option>
+              {addrs.map((a) => (
+                <option key={a.name + a.address} value={a.address}>
+                  {a.address} ({a.name})
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="checks horizontal">
+          <label>
+            <input type="checkbox" checked={cfg.udp} onChange={(e) => set({ udp: e.target.checked })} /> UDP
+          </label>
+          <label>
+            <input type="checkbox" checked={cfg.tcp} onChange={(e) => set({ tcp: e.target.checked })} /> TCP
+          </label>
+        </div>
+        <div className="row2">
+          <label className="field">
+            <span>Timestamp shown</span>
+            <select value={cfg.timeSource} onChange={(e) => set({ timeSource: e.target.value as SyslogConfig['timeSource'] })}>
+              <option value="received">Time received (recommended)</option>
+              <option value="message">Time in the message</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>Time zone of senders</span>
+            <input list="tz-list" value={cfg.messageTz} disabled={cfg.timeSource !== 'message'} onChange={(e) => set({ messageTz: e.target.value })} />
+            <small>For classic syslog timestamps without UTC offset</small>
+          </label>
+        </div>
+        {privileged && <div className="ferror">Ports below 1024 (like the standard port 514) need administrator rights on Linux and macOS. Use e.g. 1514 and point the senders there.</div>}
+        <div className="hint">
+          <div>
+            <b>Configure senders</b>, e.g. rsyslog on another Linux machine (<code>/etc/rsyslog.d/50-glviewer.conf</code>):
+          </div>
+          <pre>
+            {cfg.udp ? `*.* @${example}:${cfg.port}        # UDP\n` : ''}
+            {cfg.tcp ? `*.* @@${example}:${cfg.port}       # TCP\n` : ''}
+          </pre>
+          {v4.length > 1 && <div className="dim">Addresses of this computer: {v4.map((a) => a.address).join(', ')}</div>}
+          {props.platform === 'linux' && (
+            <div className="dim">
+              If a firewall is active, open the port, e.g.{' '}
+              <code>
+                sudo firewall-cmd {cfg.udp ? `--add-port=${cfg.port}/udp ` : ''}
+                {cfg.tcp ? `--add-port=${cfg.port}/tcp` : ''}
+              </code>
+            </div>
+          )}
+        </div>
       </div>
     </Dialog>
   )

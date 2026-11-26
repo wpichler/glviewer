@@ -131,7 +131,7 @@ export class LogDoc {
   constructor(source: DocSource, title: string) {
     this.source = source
     this.title = title
-    if (source.kind === 'journal') {
+    if (source.kind !== 'file') {
       this.ident = new StrColumn()
       this.unit = new StrColumn()
       this.host = new StrColumn()

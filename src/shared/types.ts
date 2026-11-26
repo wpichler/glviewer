@@ -5,7 +5,7 @@ export type Level = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
 export const LEVEL_UNKNOWN = 8
 export const LEVEL_NAMES = ['emerg', 'alert', 'crit', 'error', 'warning', 'notice', 'info', 'debug', 'none'] as const
 
-export type DocKind = 'file' | 'journal'
+export type DocKind = 'file' | 'journal' | 'syslog'
 
 /** Where a document came from. hostId === undefined means "this machine". */
 export interface DocSource {
@@ -13,6 +13,7 @@ export interface DocSource {
   hostId?: string
   path?: string // for files
   journal?: JournalQuery // for journals
+  syslog?: SyslogConfig // for syslog receivers
   elevated?: boolean // opened via pkexec / sudo
 }
 
@@ -104,6 +105,32 @@ export interface JournalQuery {
   sudo?: boolean
 }
 
+export interface SyslogConfig {
+  udp: boolean
+  tcp: boolean
+  port: number
+  /** Address to bind to, e.g. "0.0.0.0", "::" or "127.0.0.1". */
+  address: string
+  /** Which time to show: when the message arrived, or the timestamp inside the message. */
+  timeSource: 'received' | 'message'
+  /** Zone for message timestamps without UTC offset (RFC 3164). */
+  messageTz: string
+}
+
+export const DEFAULT_SYSLOG: SyslogConfig = {
+  udp: true,
+  tcp: true,
+  port: 1514,
+  address: '0.0.0.0',
+  timeSource: 'received',
+  messageTz: 'local'
+}
+
+export const FACILITY_NAMES = [
+  'kern', 'user', 'mail', 'daemon', 'auth', 'syslog', 'lpr', 'news', 'uucp', 'cron', 'authpriv', 'ftp',
+  'ntp', 'audit', 'alert', 'clock', 'local0', 'local1', 'local2', 'local3', 'local4', 'local5', 'local6', 'local7'
+] as const
+
 export interface BootInfo {
   index: number
   bootId: string
@@ -174,6 +201,7 @@ export interface Settings {
   hosts: HostProfile[]
   wrapDetail: boolean
   showLineNumbers: boolean
+  syslog?: SyslogConfig
 }
 
 export const DEFAULT_SETTINGS: Settings = {

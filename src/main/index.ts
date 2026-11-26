@@ -3,12 +3,14 @@ import { join, basename, posix } from 'node:path'
 import { writeFile, readdir, stat, access } from 'node:fs/promises'
 import { constants as fsConstants } from 'node:fs'
 import { randomUUID } from 'node:crypto'
-import type { RemoteEntry, DocInfo, FilterSpec, HostProfile, JournalQuery, OpenFileOptions, PromptReply, PromptRequest, SearchSpec, Settings } from '@shared/types'
+import { networkInterfaces } from 'node:os'
+import type { SyslogConfig, RemoteEntry, DocInfo, FilterSpec, HostProfile, JournalQuery, OpenFileOptions, PromptReply, PromptRequest, SearchSpec, Settings } from '@shared/types'
 import { LogDoc } from './core/LogDoc'
 import { makeStreamDecoder } from './core/encoding'
 import { decodeInto, followLocalFile, isCompressed, loadBytes, maybeDecompress, openLocalFile } from './sources/files'
 import { listBoots, listFieldValues, localRunner, openJournal, type Runner } from './sources/journal'
 import { SshManager } from './sources/ssh'
+import { startSyslog } from './sources/syslog'
 import { readSshConfigHosts } from './sources/sshconfig'
 import { addRecentFile, loadSettings, saveSettings } from './settings'
 
@@ -109,9 +111,21 @@ async function openRemoteFile(hostId: string, path: string, opts: OpenFileOption
   return doc
 }
 
-function startFollow(doc: LogDoc): void {
+async function startSyslogDoc(doc: LogDoc): Promise<void> {
+  const cfg = doc.source.syslog!
+  const l = await startSyslog(cfg, (entries) => {
+    const n = doc.appendJournal(entries)
+    notifyDoc(doc, n)
+  })
+  doc.onDispose.push(() => l.close())
+  doc.following = true
+  doc.subtitle = 'listening on ' + l.endpoints.join(', ')
+}
+
+async function startFollow(doc: LogDoc): Promise<void> {
   if (doc.following) return
   const src = doc.source
+  if (src.kind === 'syslog') return startSyslogDoc(doc)
   if (src.kind === 'journal') {
     // journals are followed by re-opening with -f (handled in journal:open)
     throw Object.assign(new Error('Re-open the journal with "Follow" enabled'), { code: 'EUNSUPPORTED' })
@@ -143,6 +157,7 @@ function stopFollow(doc: LogDoc): void {
   for (const f of doc.onDispose) f()
   doc.onDispose = []
   doc.following = false
+  if (doc.source.kind === 'syslog') doc.subtitle = 'stopped'
 }
 
 // ---- IPC ----------------------------------------------------------------------
@@ -209,6 +224,22 @@ function registerIpc(): void {
     const doc = await openJournal(runnerFor(hostId), q, title, hostId, follow, (d, n) => notifyDoc(d, n))
     return register(doc)
   })
+  handle('syslog:start', async (cfg: SyslogConfig) => {
+    saveSettings({ syslog: cfg })
+    const proto = [cfg.udp && 'UDP', cfg.tcp && 'TCP'].filter(Boolean).join('+')
+    const doc = new LogDoc({ kind: 'syslog', syslog: cfg }, `Syslog :${cfg.port} ${proto}`)
+    doc.sourceTz = 'UTC'
+    doc.loading = false
+    await startSyslogDoc(doc)
+    return register(doc)
+  })
+  handle('net:addresses', () => {
+    const out: { name: string; address: string; family: string }[] = []
+    for (const [name, list] of Object.entries(networkInterfaces())) {
+      for (const a of list ?? []) if (!a.internal) out.push({ name, address: a.address, family: a.family })
+    }
+    return out
+  })
   handle('journal:boots', (hostId?: string, sudo?: boolean) => listBoots(runnerFor(hostId), sudo))
   handle('journal:fields', (hostId: string | undefined, field: string, sudo?: boolean) => listFieldValues(runnerFor(hostId), field, sudo))
 
@@ -249,9 +280,9 @@ function registerIpc(): void {
     await d.refilter()
     return d.info()
   })
-  handle('doc:follow', (id: string, on: boolean) => {
+  handle('doc:follow', async (id: string, on: boolean) => {
     const d = getDoc(id)
-    if (on) startFollow(d)
+    if (on) await startFollow(d)
     else stopFollow(d)
     return d.info()
   })

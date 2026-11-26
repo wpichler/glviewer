@@ -24,6 +24,7 @@ GLViewer was written almost entirely by an AI coding agent (Anthropic's Claude, 
 * **systemd journal**: local or remote. Filter by boot, units, priority, time range, kernel messages, server-side grep; live follow; optional `pkexec` (local) or `sudo` (remote).
 * **Local log files**: plain, `.gz` and `.zst`. Encoding is auto-detected (BOM, UTF-8/16, chardet) and can be changed. Files that need root can be opened via `pkexec`.
 * **Remote hosts via SSH**: hosts come from `~/.ssh/config` or are added in the app. You can browse `/var/log` (falling back to sudo where permissions require it), open any path, and query the remote journal. Authentication tries the SSH agent, then keys, then password / keyboard-interactive. Host keys are verified against `~/.ssh/known_hosts`, and you are asked to confirm unknown keys.
+* **Syslog receiver**: receive logs from routers, servers and other devices over UDP and/or TCP on a configurable port (default 1514). Supports RFC 5424 and BSD syslog (RFC 3164), and both TCP framings (octet counting and newline). The dialog shows a ready-to-use rsyslog line for the senders.
 * **Viewer**:
   * Virtual scrolling with millions of lines (3M lines / 286 MB loads in ~2 s, filters in ~100 ms).
   * Search with highlighting, regex and case sensitivity.

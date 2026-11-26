@@ -33,7 +33,8 @@ function escapeRe(s: string): string {
 
 export function LogPane(props: Props) {
   const { info, displayTz } = props
-  const isJournal = info.source.kind === 'journal'
+  const isJournal = info.source.kind !== 'file' // structured entries (journal or syslog)
+  const isSyslog = info.source.kind === 'syslog'
   const viewRef = useRef<LogViewHandle | null>(null)
 
   const [filter, setFilter] = useState<FilterSpec>(EMPTY_FILTER)
@@ -50,7 +51,7 @@ export function LogPane(props: Props) {
   const [selRow, setSelRow] = useState<Row | null>(null)
   const [showDetail, setShowDetail] = useState(true)
   const [showTime, setShowTime] = useState(true)
-  const [showHost, setShowHost] = useState(false)
+  const [showHost, setShowHost] = useState(info.source.kind === 'syslog')
   const [menu, setMenu] = useState(false)
   const [tzInput, setTzInput] = useState(info.sourceTz)
   const searchRef = useRef<HTMLInputElement>(null)
@@ -148,7 +149,7 @@ export function LogPane(props: Props) {
   }
 
   const toggleFollow = async (): Promise<void> => {
-    if (isJournal) {
+    if (info.source.kind === 'journal') {
       if (info.following) await change(() => api.follow(info.id, false))
       else props.onReopen({ follow: true })
       return
@@ -203,7 +204,7 @@ export function LogPane(props: Props) {
         >
           <Icon name="filter" />
         </button>
-        <button className={'flat' + (info.following ? ' on accent' : '')} title={info.following ? 'Stop following' : 'Follow (live tail)'} onClick={() => void toggleFollow()}>
+        <button className={'flat' + (info.following ? ' on accent' : '')} title={isSyslog ? (info.following ? 'Stop receiving' : 'Start receiving again') : info.following ? 'Stop following' : 'Follow (live tail)'} onClick={() => void toggleFollow()}>
           <Icon name={info.following ? 'pause' : 'play'} />
         </button>
         {props.syncAvailable && (
@@ -355,7 +356,7 @@ export function LogPane(props: Props) {
             )}
             {selRow.ts !== null && <span className="dim">UTC {new Date(selRow.ts).toISOString().replace('T', ' ').replace('Z', '')}</span>}
             {selRow.inh && <span className="dim">(time inherited from previous line)</span>}
-            {selRow.unit && <span>unit {selRow.unit}</span>}
+            {selRow.unit && <span>{isSyslog ? 'facility' : 'unit'} {selRow.unit}</span>}
             {selRow.ident && <span>{selRow.ident}</span>}
             {selRow.pid && <span>pid {selRow.pid}</span>}
             {selRow.host && <span>host {selRow.host}</span>}
@@ -388,7 +389,8 @@ export function LogPane(props: Props) {
         {info.source.kind === 'file' && <span title="Timestamp format">{info.timestampFormat === 'auto' ? info.detectedTimestampFormat : info.timestampFormat}</span>}
         {info.sizeBytes !== undefined && <span>{formatBytes(info.sizeBytes)}</span>}
         {span !== null && <span title="Time span">{formatDuration(span)}</span>}
-        {info.following && <span className="live">● live</span>}
+        {info.following && <span className="live">● {isSyslog ? 'receiving' : 'live'}</span>}
+        {isSyslog && <span>{info.subtitle}</span>}
         {info.source.elevated && (
           <span>
             <Icon name="lock" size={12} /> elevated

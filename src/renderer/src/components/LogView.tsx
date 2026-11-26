@@ -49,7 +49,7 @@ export const LogView = forwardRef<LogViewHandle, Props>(function LogView(props, 
   const { info, fontSize } = props
   const rowH = Math.round(fontSize * 1.6)
   const count = info.viewCount
-  const isJournal = info.source.kind === 'journal'
+  const isJournal = info.source.kind !== 'file' // journal or syslog: structured columns
 
   const viewportRef = useRef<HTMLDivElement>(null)
   const innerRef = useRef<HTMLDivElement>(null)

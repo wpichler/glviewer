@@ -1,6 +1,6 @@
 import type {
   BootInfo, DocInfo, DocUpdateEvent, FilterSpec, HostProfile, HostStatus, JournalQuery, OpenFileOptions,
-  PromptReply, PromptRequest, RemoteEntry, Row, SearchSpec, Settings
+  PromptReply, PromptRequest, RemoteEntry, Row, SearchSpec, Settings, SyslogConfig
 } from '@shared/types'
 
 const c = window.glv.call
@@ -15,6 +15,8 @@ export const api = {
   listLocal: (path: string) => c<RemoteEntry[]>('local:list', path),
   listRemote: (hostId: string, path: string, sudo?: boolean) => c<RemoteEntry[]>('remote:list', hostId, path, sudo),
   openJournal: (q: JournalQuery, hostId: string | undefined, follow: boolean) => c<DocInfo>('journal:open', q, hostId, follow),
+  startSyslog: (cfg: SyslogConfig) => c<DocInfo>('syslog:start', cfg),
+  netAddresses: () => c<{ name: string; address: string; family: string }[]>('net:addresses'),
   boots: (hostId?: string, sudo?: boolean) => c<BootInfo[]>('journal:boots', hostId, sudo),
   journalFields: (hostId: string | undefined, field: string, sudo?: boolean) => c<string[]>('journal:fields', hostId, field, sudo),
   closeDoc: (id: string) => c<void>('doc:close', id),

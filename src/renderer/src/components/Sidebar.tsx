@@ -19,6 +19,7 @@ interface Props {
   onOpenFileDialog(): void
   onJournal(hostId?: string): void
   onQuickJournal(hostId?: string, newPane?: boolean): void
+  onSyslog(): void
   onAddHost(): void
   onEditHost(h: HostProfile): void
   onDeleteHost(h: HostProfile): void
@@ -214,6 +215,10 @@ export function Sidebar(props: Props) {
         <div className="item" onClick={props.onOpenFileDialog}>
           <Icon name="file" />
           <span className="name">Open file…</span>
+        </div>
+        <div className="item" onClick={props.onSyslog} title="Receive syslog messages from other devices">
+          <Icon name="antenna" />
+          <span className="name">Syslog receiver…</span>
         </div>
         <div className="item" onClick={() => setLocalLogs(!localLogs)}>
           <Icon name={localLogs ? 'folder-open' : 'folder'} />

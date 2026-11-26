@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { DEFAULT_SETTINGS, type DocInfo, type HostProfile, type HostStatus, type JournalQuery, type PromptRequest, type Settings } from '@shared/types'
+import { DEFAULT_SETTINGS, DEFAULT_SYSLOG, type SyslogConfig, type DocInfo, type HostProfile, type HostStatus, type JournalQuery, type PromptRequest, type Settings } from '@shared/types'
 import { api, errCode, errMsg } from './api'
 import { Icon } from './icons'
 import { allTimeZones, isValidTz, tzLabel } from './time'
 import { Sidebar, type OpenTarget } from './components/Sidebar'
 import { LogPane } from './components/LogPane'
 import type { LogViewHandle } from './components/LogView'
-import { HostDialog, JournalDialog, PromptDialog } from './components/Dialogs'
+import { HostDialog, JournalDialog, PromptDialog, SyslogDialog } from './components/Dialogs'
 
 interface Pane {
   id: string
@@ -36,6 +36,7 @@ export default function App() {
   const [status, setStatus] = useState<Record<string, HostStatus>>({})
   const [journalDlg, setJournalDlg] = useState<{ hostId?: string } | null>(null)
   const [hostDlg, setHostDlg] = useState<{ host?: HostProfile } | null>(null)
+  const [syslogDlg, setSyslogDlg] = useState(false)
   const [prompts, setPrompts] = useState<PromptRequest[]>([])
   const [toasts, setToasts] = useState<Toast[]>([])
   const [syncMarks, setSyncMarks] = useState<Record<string, number | null>>({})
@@ -131,6 +132,19 @@ export default function App() {
     [addDoc, toast]
   )
 
+  const openSyslog = useCallback(
+    async (cfg: SyslogConfig, opts: { newPane?: boolean; replace?: string } = {}) => {
+      try {
+        const info = await withBusy(api.startSyslog(cfg))
+        addDoc(info, opts)
+        setSettings((s) => ({ ...s, syslog: cfg }))
+      } catch (e) {
+        toast(errMsg(e))
+      }
+    },
+    [addDoc, toast]
+  )
+
   const quickJournal = (hostId?: string, inNewPane?: boolean): void =>
     void openJournal({ limit: settings.journalLimit, boot: '0' }, hostId, false, { newPane: inNewPane })
 
@@ -159,13 +173,17 @@ export default function App() {
       const info = docsRef.current[id]
       if (!info) return
       const s = info.source
-      if (s.kind === 'journal' && s.journal) {
+      if (s.kind === 'syslog' && s.syslog) {
+        // the old listener must release the port before a new one can bind it
+        const cfg = s.syslog
+        void api.closeDoc(id).then(() => openSyslog(cfg, { replace: id }))
+      } else if (s.kind === 'journal' && s.journal) {
         void openJournal(s.journal, s.hostId, opts.follow ?? info.following, { replace: id }).then(() => void api.closeDoc(id).catch(() => {}))
       } else if (s.path) {
         void openTarget({ hostId: s.hostId, path: s.path, sudo: s.elevated }, { encoding: info.encoding, replace: id }).then(() => void api.closeDoc(id).catch(() => {}))
       }
     },
-    [openJournal, openTarget]
+    [openJournal, openTarget, openSyslog]
   )
 
   // ---- startup & events --------------------------------------------------------
@@ -343,6 +361,7 @@ export default function App() {
             onOpenFileDialog={() => void api.openFileDialog().then((ps) => ps.forEach((p, i) => void openTarget({ path: p, newPane: i > 0 })))}
             onJournal={(hostId) => setJournalDlg({ hostId })}
             onQuickJournal={quickJournal}
+            onSyslog={() => setSyslogDlg(true)}
             onAddHost={() => setHostDlg({})}
             onEditHost={(h) => setHostDlg({ host: h })}
             onDeleteHost={(h) => void api.deleteHost(h.id).then(refreshHosts)}
@@ -384,7 +403,7 @@ export default function App() {
                           onAuxClick={(e) => e.button === 1 && closeDoc(t)}
                           title={`${d.title}\n${d.subtitle}`}
                         >
-                          <Icon name={d.source.kind === 'journal' ? 'journal' : d.source.hostId ? 'server' : 'file'} size={14} />
+                          <Icon name={d.source.kind === 'journal' ? 'journal' : d.source.kind === 'syslog' ? 'antenna' : d.source.hostId ? 'server' : 'file'} size={14} />
                           <span className="tab-title">{d.title}</span>
                           {d.loading && <span className="spinner small" />}
                           {d.following && <span className="live">●</span>}
@@ -442,6 +461,7 @@ export default function App() {
                       onJournalQuery={() => setJournalDlg({})}
                       onOpen={() => void api.openFileDialog().then((ps) => ps.forEach((x) => void openTarget({ path: x })))}
                       onHost={() => setHostDlg({})}
+                      onSyslog={() => setSyslogDlg(true)}
                       first={i === 0 && Object.keys(docs).length === 0}
                     />
                   )}
@@ -469,6 +489,17 @@ export default function App() {
           onOpen={(q, follow) => {
             setJournalDlg(null)
             void openJournal(q, journalDlg.hostId, follow)
+          }}
+        />
+      )}
+      {syslogDlg && (
+        <SyslogDialog
+          initial={settings.syslog ?? DEFAULT_SYSLOG}
+          platform={platform}
+          onClose={() => setSyslogDlg(false)}
+          onStart={(cfg) => {
+            setSyslogDlg(false)
+            void openSyslog(cfg)
           }}
         />
       )}
@@ -507,7 +538,7 @@ export default function App() {
   )
 }
 
-function Welcome(props: { onJournal(): void; onJournalQuery(): void; onOpen(): void; onHost(): void; first: boolean }) {
+function Welcome(props: { onJournal(): void; onJournalQuery(): void; onOpen(): void; onHost(): void; onSyslog(): void; first: boolean }) {
   return (
     <div className="welcome">
       <div className="welcome-inner">
@@ -515,7 +546,7 @@ function Welcome(props: { onJournal(): void; onJournalQuery(): void; onOpen(): v
           <Icon name="journal" size={56} />
         </div>
         <h1>{props.first ? 'GLViewer' : 'Empty pane'}</h1>
-        <p className="dim">{props.first ? 'View the systemd journal, local log files and logs on remote hosts.' : 'Open something here to compare it side by side.'}</p>
+        <p className="dim">{props.first ? 'View the systemd journal, local log files, logs on remote hosts and syslog from other devices.' : 'Open something here to compare it side by side.'}</p>
         <div className="welcome-actions">
           <button className="pill suggested" onClick={props.onJournal}>
             <Icon name="journal" /> System journal (current boot)
@@ -528,6 +559,9 @@ function Welcome(props: { onJournal(): void; onJournalQuery(): void; onOpen(): v
           </button>
           <button className="pill" onClick={props.onHost}>
             <Icon name="server" /> Add remote host…
+          </button>
+          <button className="pill" onClick={props.onSyslog}>
+            <Icon name="antenna" /> Receive syslog…
           </button>
         </div>
         <p className="dim small">Drop files here to open them. Ctrl+F search · Ctrl+L filter · F3 next match</p>

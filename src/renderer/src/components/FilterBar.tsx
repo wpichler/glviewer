@@ -30,7 +30,7 @@ export function FilterBar({ info, filter, displayTz, selectedTs, onChange, error
   const [host, setHost] = useState(filter.host ?? '')
   const [units, setUnits] = useState<string[]>([])
   const [hosts, setHosts] = useState<string[]>([])
-  const isJournal = info.source.kind === 'journal'
+  const isJournal = info.source.kind !== 'file'
   const timer = useRef<number | null>(null)
   const latest = useRef(filter)
   latest.current = filter
@@ -174,10 +174,10 @@ export function FilterBar({ info, filter, displayTz, selectedTs, onChange, error
       {isJournal && (
         <div className="frow">
           <div className="entry grow">
-            <span className="lbl">Unit</span>
+            <span className="lbl">{info.source.kind === 'syslog' ? 'App' : 'Unit'}</span>
             <input
               list={'units-' + info.id}
-              placeholder="unit or identifier (substring)"
+              placeholder={info.source.kind === 'syslog' ? 'app name or facility (substring)' : 'unit or identifier (substring)'}
               value={unit}
               onChange={(e) => {
                 setUnit(e.target.value)
