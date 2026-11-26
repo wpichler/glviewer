@@ -1,0 +1,40 @@
+appId: io.github.wpichler.GLViewer
+productName: GLViewer
+directories:
+  buildResources: resources
+  output: dist
+files:
+  - out/**
+  - resources/icon.png
+  - package.json
+  # optional native addons of ssh2 are built for Node, not Electron; ssh2 falls back to pure JS
+  - '!**/node_modules/cpu-features/**'
+  - '!**/node_modules/ssh2/lib/protocol/crypto/build/**'
+npmRebuild: false
+asarUnpack:
+  - resources/**
+linux:
+  target: [AppImage, tar.gz, rpm, deb]
+  category: System
+  icon: resources/icon.png
+  executableName: glviewer
+  maintainer: Wolfgang Pichler <wpichler@users.noreply.github.com>
+  artifactName: ${productName}-${version}-linux-${arch}.${ext}
+  syncDesktopName: true
+  synopsis: Log viewer for systemd journal, files and remote hosts
+  desktop:
+    entry:
+      Name: GLViewer
+      Comment: View systemd journal, local and remote log files
+      Keywords: log;journal;syslog;ssh;viewer;
+      StartupWMClass: io.github.wpichler.GLViewer
+  mimeTypes: [text/x-log, text/plain]
+rpm:
+  depends: [polkit]
+win:
+  target: [nsis]
+  icon: resources/icon.png
+mac:
+  target: [dmg]
+  category: public.app-category.developer-tools
+  icon: resources/icon.png

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=GLViewer
+Comment=View systemd journal, local and remote log files
+Exec=glviewer %F
+Icon=io.github.wpichler.GLViewer
+Terminal=false
+Categories=System;Monitor;
+Keywords=log;journal;syslog;ssh;viewer;
+MimeType=text/x-log;text/plain;
+StartupWMClass=io.github.wpichler.GLViewer

@@ -1,0 +1,52 @@
+# Local development Flatpak manifest (the Flathub manifest lives in the flathub repo). Packages the electron-builder output (dist/linux-unpacked),
+# so run `npm run dist:dir` first. Build with:
+#   flatpak-builder --user --install --force-clean build-flatpak flatpak/io.github.wpichler.GLViewer.local.yml
+app-id: io.github.wpichler.GLViewer
+runtime: org.freedesktop.Platform
+runtime-version: '25.08'
+sdk: org.freedesktop.Sdk
+base: org.electronjs.Electron2.BaseApp
+base-version: '25.08'
+command: glviewer
+separate-locales: false
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # SSH: agent socket and read access to ~/.ssh (config, keys, known_hosts)
+  - --socket=ssh-auth
+  - --filesystem=~/.ssh:ro
+  # local log files
+  - --filesystem=host:ro
+  - --filesystem=/var/log:ro
+  # run journalctl / pkexec on the host via flatpak-spawn --host
+  - --talk-name=org.freedesktop.Flatpak
+  - --env=ELECTRON_OZONE_PLATFORM_HINT=auto
+modules:
+  - name: glviewer
+    buildsystem: simple
+    sources:
+      - type: dir
+        path: ../dist/linux-unpacked
+        dest: app
+      - type: file
+        path: ../resources/icon.png
+      - type: file
+        path: io.github.wpichler.GLViewer.svg
+      - type: file
+        path: io.github.wpichler.GLViewer.desktop
+      - type: file
+        path: io.github.wpichler.GLViewer.metainfo.xml
+      - type: script
+        dest-filename: glviewer.sh
+        commands:
+          - exec zypak-wrapper /app/glviewer/glviewer "$@"
+    build-commands:
+      - cp -a app /app/glviewer
+      - install -Dm755 glviewer.sh /app/bin/glviewer
+      - install -Dm644 icon.png /app/share/icons/hicolor/512x512/apps/io.github.wpichler.GLViewer.png
+      - install -Dm644 io.github.wpichler.GLViewer.svg /app/share/icons/hicolor/scalable/apps/io.github.wpichler.GLViewer.svg
+      - install -Dm644 io.github.wpichler.GLViewer.desktop /app/share/applications/io.github.wpichler.GLViewer.desktop
+      - install -Dm644 io.github.wpichler.GLViewer.metainfo.xml /app/share/metainfo/io.github.wpichler.GLViewer.metainfo.xml

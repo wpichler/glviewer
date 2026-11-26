@@ -1,0 +1,61 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: gh release create "$GITHUB_REF_NAME" --title "GLViewer $GITHUB_REF_NAME" --generate-notes --draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+  build:
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y rpm
+      - run: npm ci
+      - run: npm test
+      - run: npx electron-vite build
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          npx electron-builder --linux AppImage deb rpm tar.gz --x64 --publish never
+          npx electron-builder --linux AppImage tar.gz --arm64 --publish never
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        run: npx electron-builder --win nsis --x64 --publish never
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        run: npx electron-builder --mac dmg --x64 --arm64 --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Upload artifacts
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=(dist/*.AppImage dist/*.deb dist/*.rpm dist/*.tar.gz dist/*.exe dist/*.dmg)
+          gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: gh release edit "$GITHUB_REF_NAME" --draft=false
+        env:
+          GH_TOKEN: ${{ github.token }}
