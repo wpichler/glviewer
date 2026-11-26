@@ -9,6 +9,8 @@ import type { JournalEntry } from '../src/main/core/LogDoc'
 import { DEFAULT_SYSLOG } from '../src/shared/types'
 
 const NOW = Date.UTC(2026, 10, 26, 12)
+// util-linux logger (Linux) supports --server; the BSD logger on macOS does not
+const hasUtilLinuxLogger = process.platform === 'linux' && existsSync('/usr/bin/logger')
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 test('RFC 5424 with structured data', () => {
@@ -80,7 +82,7 @@ test('listener receives UDP and TCP (node clients and logger)', async () => {
       })
       c.on('close', () => resolve())
     })
-    if (existsSync('/usr/bin/logger')) {
+    if (hasUtilLinuxLogger) {
       execFileSync('logger', ['--server', '127.0.0.1', '--port', String(port), '--udp', '--rfc3164', '-t', 'lgudp', 'from logger udp'])
       execFileSync('logger', ['--server', '127.0.0.1', '--port', String(port), '--tcp', '--octet-count', '--rfc5424', '-t', 'lgtcp', '-p', 'local3.warning', 'from logger tcp'])
     }
@@ -93,7 +95,7 @@ test('listener receives UDP and TCP (node clients and logger)', async () => {
   assert.equal(byMsg['udp message'].prio, 3)
   assert.equal(byMsg['udp message'].unit, 'user')
   assert.equal(byMsg['tcp message'].ident, 'svc')
-  if (existsSync('/usr/bin/logger')) {
+  if (hasUtilLinuxLogger) {
     assert.equal(byMsg['from logger udp'].ident, 'lgudp')
     assert.equal(byMsg['from logger tcp'].ident, 'lgtcp')
     assert.equal(byMsg['from logger tcp'].prio, 4)
