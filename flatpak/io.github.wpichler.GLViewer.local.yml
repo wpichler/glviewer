@@ -21,10 +21,34 @@ finish-args:
   # local log files
   - --filesystem=host:ro
   - --filesystem=/var/log:ro
-  # run journalctl / pkexec on the host via flatpak-spawn --host
-  - --talk-name=org.freedesktop.Flatpak
+  # systemd journal, read with the bundled journalctl (persistent and volatile journal)
+  - --filesystem=/var/log/journal:ro
+  - --filesystem=/run/log/journal:ro
   - --env=ELECTRON_OZONE_PLATFORM_HINT=auto
 modules:
+  # journalctl, built from systemd and linked statically against systemd's
+  # internal libraries, so the journal is read inside the sandbox.
+  - name: journalctl
+    buildsystem: simple
+    sources:
+      - type: archive
+        url: https://github.com/systemd/systemd/archive/refs/tags/v262.2.tar.gz
+        sha256: 116432ee9dce9bfef4c7da7963c6de41899ab44197f2876ee99545707a5c7c1f
+      # build-time only: systemd's build scripts need jinja2
+      - type: archive
+        url: https://files.pythonhosted.org/packages/df/bf/f7da0350254c0ed7c72f3e33cef02e048281fec7ecec5f032d4aac52226b/jinja2-3.1.6.tar.gz
+        sha256: 0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d
+        dest: py/jinja2
+      - type: archive
+        url: https://files.pythonhosted.org/packages/38/9b/e422a865e1d5d57d0e509b4e0bf1c1a70a7f6382c29a5aa428df994c8bc8/markupsafe-3.0.4.tar.gz
+        sha256: 2e9ad7dd851bf45fab9f75cbff4cb493fee9979e8d8c7c9c3ee119022518edd6
+        dest: py/markupsafe
+    build-commands:
+      - export PYTHONPATH="$PWD/py/jinja2/src:$PWD/py/markupsafe/src";
+        meson setup _build --prefix=/app -Dmode=release -Dlink-journalctl-shared=false
+        -Dtests=false -Dman=disabled -Dhtml=disabled -Dtranslations=false
+      - export PYTHONPATH="$PWD/py/jinja2/src:$PWD/py/markupsafe/src"; ninja -C _build journalctl
+      - install -Dm755 _build/journalctl /app/bin/journalctl
   - name: glviewer
     buildsystem: simple
     sources:

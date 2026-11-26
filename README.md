@@ -11,6 +11,7 @@ A fast log viewer for the GNOME desktop (and, through Electron, also Windows and
   flatpak install --user GLViewer-vX.Y.Z-x86_64.flatpak
   ```
   The runtime is installed from Flathub automatically. Updates: install the newer bundle the same way.
+  The Flatpak runs sandboxed. Opening files as administrator is not available there (see [Packaging](#packaging)).
   GLViewer is not available on Flathub.
 * **Other Linux**: AppImage, `.deb`, `.rpm` or `.tar.gz` (x86_64 and arm64) from the releases page.
 * **Windows / macOS**: installer / `.dmg` from the releases page. These builds are unsigned, so the OS will warn before the first start.
@@ -56,7 +57,10 @@ npm run dist:mac     # dmg (on macOS)
 npm run dist:flatpak # local Flatpak build; needs org.flatpak.Builder + org.electronjs.Electron2.BaseApp//26.08 (flathub)
 ```
 
-In the Flatpak, `journalctl` and `pkexec` are run on the host through `flatpak-spawn --host`.
+The Flatpak bundles its own `journalctl` (built from systemd) and reads the journal inside the sandbox, with read-only access to `/var/log/journal` and `/run/log/journal`. It does not request access to the host. This means:
+
+* You see the system journal if your user may read it outside the sandbox too: on most distributions, members of `wheel`, `adm` or `systemd-journal`. Otherwise you see your own user journal.
+* "As administrator" (`pkexec`) is not available. To enable it, allow GLViewer to talk to `org.freedesktop.Flatpak` (e.g. with Flatseal). Then `pkexec` runs on the host. The AppImage and distribution packages have no such limitation.
 
 ## Layout
 

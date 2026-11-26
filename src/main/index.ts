@@ -10,6 +10,7 @@ import { makeStreamDecoder } from './core/encoding'
 import { decodeInto, followLocalFile, isCompressed, loadBytes, maybeDecompress, openLocalFile } from './sources/files'
 import { listBoots, listFieldValues, localRunner, openJournal, type Runner } from './sources/journal'
 import { SshManager } from './sources/ssh'
+import { canElevate } from './sources/host'
 import { startSyslog } from './sources/syslog'
 import { readSshConfigHosts } from './sources/sshconfig'
 import { addRecentFile, loadSettings, saveSettings } from './settings'
@@ -169,7 +170,8 @@ function registerIpc(): void {
     platform: process.platform,
     version: app.getVersion(),
     initialFiles: initialFiles,
-    initialJournal
+    initialJournal,
+    canElevate
   }))
 
   handle('dialog:openFiles', async () => {

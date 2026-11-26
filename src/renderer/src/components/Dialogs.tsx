@@ -30,6 +30,8 @@ export function JournalDialog(props: {
   hostName?: string
   defaultLimit: number
   displayTz: string
+  /** Whether pkexec can be used for the local journal. */
+  canElevate: boolean
   onOpen(q: JournalQuery, follow: boolean): void
   onClose(): void
 }) {
@@ -183,9 +185,11 @@ export function JournalDialog(props: {
           <label>
             <input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} /> Follow new entries (live)
           </label>
-          <label title={props.hostId ? 'Run journalctl via sudo on the remote host' : 'Run journalctl via pkexec (polkit)'}>
-            <input type="checkbox" checked={sudo} onChange={(e) => setSudo(e.target.checked)} /> {props.hostId ? 'Use sudo' : 'As administrator (pkexec)'}
-          </label>
+          {(props.hostId || props.canElevate) && (
+            <label title={props.hostId ? 'Run journalctl via sudo on the remote host' : 'Run journalctl via pkexec (polkit)'}>
+              <input type="checkbox" checked={sudo} onChange={(e) => setSudo(e.target.checked)} /> {props.hostId ? 'Use sudo' : 'As administrator (pkexec)'}
+            </label>
+          )}
         </div>
         {err && <div className="ferror">{err}</div>}
       </div>

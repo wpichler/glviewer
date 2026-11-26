@@ -29,6 +29,8 @@ const newPane = (tabs: string[] = []): Pane => ({ id: 'p' + paneSeq++, tabs, act
 export default function App() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
   const [platform, setPlatform] = useState('linux')
+  const [canElevate, setCanElevate] = useState(false)
+  const canElevateRef = useRef(false)
   const [docs, setDocs] = useState<Record<string, DocInfo>>({})
   const [panes, setPanes] = useState<Pane[]>(() => [newPane()])
   const [focused, setFocused] = useState<string>(() => 'p1')
@@ -100,6 +102,8 @@ export default function App() {
 
   const openTarget = useCallback(
     async (t: OpenTarget, extra: { encoding?: string; replace?: string } = {}) => {
+      // without administrator access (e.g. Flatpak), try a normal open and explain on failure
+      if (!t.hostId && t.sudo && !canElevateRef.current) t = { ...t, sudo: false }
       try {
         const info = await withBusy(
           t.hostId
@@ -109,7 +113,9 @@ export default function App() {
         addDoc(info, { newPane: t.newPane, replace: extra.replace })
         if (!t.hostId) api.settings().then(setSettings, () => {})
       } catch (e) {
-        if (errCode(e) === 'EACCES' && !t.sudo) {
+        if (errCode(e) === 'EACCES' && !t.sudo && !t.hostId && !canElevateRef.current) {
+          toast(`${errMsg(e)}. Administrator access is not available in this version (Flatpak sandbox).`)
+        } else if (errCode(e) === 'EACCES' && !t.sudo) {
           toast(`${errMsg(e)}`, 'error', {
             label: t.hostId ? 'Open with sudo' : 'Open as administrator',
             run: () => void openTarget({ ...t, sudo: true }, extra)
@@ -203,6 +209,8 @@ export default function App() {
     ]
     api.appInfo().then(async (inf) => {
       setPlatform(inf.platform)
+      setCanElevate(inf.canElevate)
+      canElevateRef.current = inf.canElevate
       if (inf.initialJournal) await openJournal({ limit: DEFAULT_SETTINGS.journalLimit, boot: '0' }, undefined, false, { newPane: true })
       for (const f of inf.initialFiles) await openTarget({ path: f, newPane: true })
     }, () => {})
@@ -484,6 +492,7 @@ export default function App() {
           hostId={journalDlg.hostId}
           hostName={hosts.find((h) => h.id === journalDlg.hostId)?.name}
           defaultLimit={settings.journalLimit}
+          canElevate={canElevate}
           displayTz={settings.displayTz}
           onClose={() => setJournalDlg(null)}
           onOpen={(q, follow) => {

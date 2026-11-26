@@ -7,3 +7,4 @@ build-flatpak/
 .flatpak-builder/
 .flathub/
 .appimage-tools/
+.flatpak-test/
