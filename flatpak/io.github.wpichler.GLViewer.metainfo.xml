@@ -26,7 +26,7 @@
   <screenshots>
     <screenshot type="default">
       <caption>Two log files side by side, scrolled in sync by timestamp</caption>
-      <image>https://raw.githubusercontent.com/wpichler/glviewer/v0.1.0/docs/screenshot.png</image>
+      <image>https://raw.githubusercontent.com/wpichler/glviewer/main/docs/screenshot.png</image>
     </screenshot>
   </screenshots>
   <branding>
@@ -42,6 +42,11 @@
     <display_length compare="ge">768</display_length>
   </requires>
   <releases>
+    <release version="0.1.1" date="2026-11-26">
+      <description>
+        <p>Flatpak bundle attached to releases. AI-generated code disclosed in the README.</p>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-11-26">
       <description>
         <p>First release.</p>

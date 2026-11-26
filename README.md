@@ -6,8 +6,18 @@ A fast log viewer for the GNOME desktop (and, through Electron, also Windows and
 
 ## Install
 
-* **Linux**: AppImage, `.deb`, `.rpm` or `.tar.gz` from the [releases page](https://github.com/wpichler/glviewer/releases). Flathub submission is in progress.
-* **Windows / macOS**: installer from the releases page (unsigned builds).
+* **Flatpak**: download `GLViewer-vX.Y.Z-x86_64.flatpak` from the [releases page](https://github.com/wpichler/glviewer/releases), then:
+  ```sh
+  flatpak install --user GLViewer-vX.Y.Z-x86_64.flatpak
+  ```
+  The runtime is installed from Flathub automatically. Updates: install the newer bundle the same way.
+  GLViewer is not available on Flathub.
+* **Other Linux**: AppImage, `.deb`, `.rpm` or `.tar.gz` (x86_64 and arm64) from the releases page.
+* **Windows / macOS**: installer / `.dmg` from the releases page. These builds are unsigned, so the OS will warn before the first start.
+
+## AI-generated code
+
+GLViewer was written almost entirely by an AI coding agent (Anthropic's Claude, used through Claude Code) under the direction of the maintainer. That covers the application code, the tests, the packaging (electron-builder config, Flatpak manifest, CI workflows), this README, the icon and the demo screenshot. Please keep this in mind when evaluating it, and report problems via the [issue tracker](https://github.com/wpichler/glviewer/issues).
 
 ## Features
 
