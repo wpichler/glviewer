@@ -62,23 +62,26 @@ jobs:
           GH_TOKEN: ${{ github.token }}
   flatpak:
     needs: build
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-26.08
-      options: --privileged
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: linux-unpacked
       - run: mkdir -p dist && tar xzf linux-unpacked.tgz -C dist
-      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
-        with:
-          bundle: GLViewer-${{ github.ref_name }}-x86_64.flatpak
-          manifest-path: flatpak/io.github.wpichler.GLViewer.local.yml
-          arch: x86_64
-          cache: false
-          upload-artifact: false
+      - name: Install flatpak-builder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+          # Ubuntu 24.04 restricts unprivileged user namespaces, which bubblewrap needs
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+      - name: Build bundle
+        run: |
+          flatpak-builder --user --install-deps-from=flathub --disable-rofiles-fuse --force-clean \
+            --repo=repo build flatpak/io.github.wpichler.GLViewer.local.yml
+          flatpak build-bundle --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
+            repo "GLViewer-${GITHUB_REF_NAME}-x86_64.flatpak" io.github.wpichler.GLViewer
       - uses: actions/upload-artifact@v4
         with:
           name: flatpak-bundle
