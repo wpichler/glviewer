@@ -299,9 +299,31 @@ export class LogDoc {
     if (newLines.length === 0) return 0
     const from = this.lines.length
     for (const l of newLines) this.lines.push(l)
+    // a file that started empty (or was rotated) had nothing to detect the format from
+    if (this.tsFormat === 'auto' && (this.detectedTsFormat ?? 'none') === 'none' && this.lines.length <= 5000) {
+      this.detectedTsFormat = detectFormat(this.lines, { refMs: this.refMs })
+      if (this.detectedTsFormat !== 'none') {
+        this.naiveCount = 0
+        this.lastTs = NaN
+        this.lastLevel = LEVEL_UNKNOWN
+        this.computeTextMeta(0)
+        this.version++
+        this.extendView(from)
+        return newLines.length
+      }
+    }
     this.computeTextMeta(from)
     this.extendView(from)
     return newLines.length
+  }
+
+  /** Drop all content, e.g. when a followed file was truncated or rotated. */
+  resetContent(): void {
+    this.raw = Buffer.alloc(0)
+    this.rawParts = []
+    this.detectedTsFormat = undefined
+    this.setTextLines([])
+    if (this.view) this.view = new Grow(Uint32Array, 4096)
   }
 
   /** Re-interpret naive timestamps in another zone. */

@@ -108,8 +108,7 @@ export function followLocalFile(doc: LogDoc, onAppend: (n: number) => void, onRe
         // truncated or rotated: start over
         offset = 0
         decoder = makeStreamDecoder(doc.encoding ?? 'utf-8')
-        doc.raw = Buffer.alloc(0)
-        doc.setTextLines([])
+        doc.resetContent()
         onReset()
       }
       if (st.size > offset) {

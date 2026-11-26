@@ -29,3 +29,17 @@ test('follow appends lines, handles partial lines and truncation', async () => {
   assert.equal(doc.row(0).text, 'x')
   assert.ok(appended >= 2)
 })
+
+test('after rotation the timestamp format is detected again and the size is correct', async () => {
+  const f = join(mkdtempSync(join(tmpdir(), 'glv-')), 'r.log')
+  writeFileSync(f, '2026-11-26 10:00:00 INFO a\n2026-11-26 10:00:01 INFO b\n')
+  const doc = await openLocalFile(f, {})
+  const stop = followLocalFile(doc, () => {}, () => {})
+  writeFileSync(f, 'Nov 26 11:00:00 host app: rotated\n')
+  await sleep(1300)
+  stop()
+  assert.equal(doc.lineCount, 1)
+  assert.equal(doc.info().detectedTimestampFormat, 'syslog')
+  assert.notEqual(doc.row(0).ts, null)
+  assert.equal(doc.info().sizeBytes, Buffer.byteLength('Nov 26 11:00:00 host app: rotated\n'))
+})
