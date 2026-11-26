@@ -6,3 +6,4 @@ dist/
 build-flatpak/
 .flatpak-builder/
 .flathub/
+.appimage-tools/

@@ -1,7 +1,7 @@
 {
   "name": "glviewer",
   "productName": "GLViewer",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Fast log viewer for systemd journal, local log files and remote hosts via SSH",
   "main": "out/main/index.js",
   "license": "MIT",

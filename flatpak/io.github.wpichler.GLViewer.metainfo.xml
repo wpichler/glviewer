@@ -2,7 +2,7 @@
 <component type="desktop-application">
   <id>io.github.wpichler.GLViewer</id>
   <name>GLViewer</name>
-  <summary>View system journal, local and remote log files</summary>
+  <summary>View system journal, local, remote and syslog logs</summary>
   <developer id="io.github.wpichler">
     <name>Wolfgang Pichler</name>
   </developer>
@@ -14,6 +14,7 @@
       <li>Browse the systemd journal by boot, unit, priority and time range, and follow it live</li>
       <li>Open plain or compressed log files with automatic encoding detection</li>
       <li>Connect to remote hosts via SSH, browse /var/log and read the remote journal</li>
+      <li>Receive syslog messages from other devices over UDP or TCP</li>
       <li>Search and filter by text, regular expression, severity and time</li>
       <li>Compare logs side by side with scrolling synchronized by timestamp</li>
       <li>Show timestamps normalized to a time zone of your choice</li>
@@ -42,6 +43,12 @@
     <display_length compare="ge">768</display_length>
   </requires>
   <releases>
+    <release version="0.1.2" date="2026-11-26">
+      <description>
+        <p>New syslog receiver: receive logs from other devices over UDP and TCP (RFC 5424 and RFC 3164).</p>
+        <p>AppImage: static runtime (no libfuse2 needed), AppStream metainfo and update information.</p>
+      </description>
+    </release>
     <release version="0.1.1" date="2026-11-26">
       <description>
         <p>Flatpak bundle attached to releases. AI-generated code disclosed in the README.</p>

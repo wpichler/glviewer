@@ -26,7 +26,7 @@ jobs:
           node-version: 22
           cache: npm
       - if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y rpm
+        run: sudo apt-get update && sudo apt-get install -y rpm squashfs-tools zsync
       - run: npm ci
       - run: npm test
       - run: npx electron-vite build
@@ -35,6 +35,9 @@ jobs:
         run: |
           npx electron-builder --linux AppImage deb rpm tar.gz --x64 --publish never
           npx electron-builder --linux AppImage tar.gz --arm64 --publish never
+          # static runtime (no libfuse2), AppStream metainfo, update information + .zsync
+          bash scripts/repack-appimage.sh dist/GLViewer-*-linux-x86_64.AppImage x86_64
+          bash scripts/repack-appimage.sh dist/GLViewer-*-linux-arm64.AppImage aarch64
       - name: Keep unpacked x64 build for the Flatpak job
         if: runner.os == 'Linux'
         run: tar czf linux-unpacked.tgz -C dist linux-unpacked
@@ -56,7 +59,7 @@ jobs:
         shell: bash
         run: |
           shopt -s nullglob
-          files=(dist/*.AppImage dist/*.deb dist/*.rpm dist/*.tar.gz dist/*.exe dist/*.dmg)
+          files=(dist/*.AppImage dist/*.AppImage.zsync dist/*.deb dist/*.rpm dist/*.tar.gz dist/*.exe dist/*.dmg)
           gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
         env:
           GH_TOKEN: ${{ github.token }}
