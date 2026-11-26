@@ -5,3 +5,4 @@ dist/
 !test/fixtures/*.log
 build-flatpak/
 .flatpak-builder/
+.flathub/

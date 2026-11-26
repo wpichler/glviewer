@@ -42,7 +42,7 @@ Open files from the command line with `npx electron . file1.log file2.log` (each
 npm run dist:linux   # AppImage, rpm, deb  (rpm needs rpmbuild)
 npm run dist:win     # NSIS installer
 npm run dist:mac     # dmg (on macOS)
-npm run dist:flatpak # local Flatpak build; needs org.flatpak.Builder + org.electronjs.Electron2.BaseApp//25.08 (flathub)
+npm run dist:flatpak # local Flatpak build; needs org.flatpak.Builder + org.electronjs.Electron2.BaseApp//26.08 (flathub)
 ```
 
 In the Flatpak, `journalctl` and `pkexec` are run on the host through `flatpak-spawn --host`.

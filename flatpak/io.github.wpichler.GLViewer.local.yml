@@ -3,10 +3,10 @@
 #   flatpak-builder --user --install --force-clean build-flatpak flatpak/io.github.wpichler.GLViewer.local.yml
 app-id: io.github.wpichler.GLViewer
 runtime: org.freedesktop.Platform
-runtime-version: '25.08'
+runtime-version: '26.08'
 sdk: org.freedesktop.Sdk
 base: org.electronjs.Electron2.BaseApp
-base-version: '25.08'
+base-version: '26.08'
 command: glviewer
 separate-locales: false
 finish-args:
