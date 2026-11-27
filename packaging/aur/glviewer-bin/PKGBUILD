@@ -1,0 +1,50 @@
+# Maintainer: Wolfgang Pichler <wpichler at users dot noreply dot github dot com>
+
+pkgname=glviewer-bin
+_pkgname=glviewer
+pkgver=0.1.2
+pkgrel=1
+pkgdesc='Log viewer for the systemd journal, local log files, remote hosts via SSH and syslog'
+arch=('x86_64' 'aarch64')
+url='https://github.com/wpichler/glviewer'
+license=('MIT')
+depends=('alsa-lib' 'gtk3' 'nss')
+optdepends=(
+  'polkit: open root-only log files and the full journal as administrator'
+  'systemd: local journal (journalctl)'
+)
+provides=("${_pkgname}")
+conflicts=("${_pkgname}")
+options=('!strip' '!debug')
+source=(
+  "${_pkgname}-${pkgver}.desktop::https://raw.githubusercontent.com/wpichler/glviewer/v${pkgver}/resources/glviewer.desktop"
+  "${_pkgname}-${pkgver}.png::https://raw.githubusercontent.com/wpichler/glviewer/v${pkgver}/resources/icon.png"
+  "${_pkgname}-${pkgver}-LICENSE::https://raw.githubusercontent.com/wpichler/glviewer/v${pkgver}/LICENSE"
+)
+source_x86_64=("${_pkgname}-${pkgver}-x86_64.tar.gz::https://github.com/wpichler/glviewer/releases/download/v${pkgver}/GLViewer-${pkgver}-linux-x64.tar.gz")
+source_aarch64=("${_pkgname}-${pkgver}-aarch64.tar.gz::https://github.com/wpichler/glviewer/releases/download/v${pkgver}/GLViewer-${pkgver}-linux-arm64.tar.gz")
+sha256sums=('b4a0120c191c737df23f7c696861989d95bc244d5e06dd135dcad2727b051685'
+            '7d0fadbb9e5a66eb89045efc90d86897ba1d769043d1515efa334d0052701e8d'
+            '48c3425d97be6324da9bfc30cbf53f110bae09410bc70c67c3b36dfd136a1a07')
+sha256sums_x86_64=('3451547268d797441733c611e6817f1cb54ce6429df335f3625488d8a75b5dee')
+sha256sums_aarch64=('a23cd2f67f7af5b05ca1fc184289b13f98b37bfcc4ebe839f470e83ea1b3b893')
+
+package() {
+  local _arch
+  case "${CARCH}" in
+    x86_64) _arch=x64 ;;
+    aarch64) _arch=arm64 ;;
+  esac
+  install -d "${pkgdir}/opt/${_pkgname}"
+  cp -a "GLViewer-${pkgver}-linux-${_arch}/." "${pkgdir}/opt/${_pkgname}/"
+
+  install -d "${pkgdir}/usr/bin"
+  ln -s "/opt/${_pkgname}/${_pkgname}" "${pkgdir}/usr/bin/${_pkgname}"
+
+  # file name matches the Wayland app id, so the window is associated with the launcher
+  install -Dm644 "${_pkgname}-${pkgver}.desktop" "${pkgdir}/usr/share/applications/io.github.wpichler.GLViewer.desktop"
+  install -Dm644 "${_pkgname}-${pkgver}.png" "${pkgdir}/usr/share/icons/hicolor/512x512/apps/${_pkgname}.png"
+  install -Dm644 "${_pkgname}-${pkgver}-LICENSE" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+  install -Dm644 -t "${pkgdir}/usr/share/licenses/${pkgname}" \
+    "${pkgdir}/opt/${_pkgname}/LICENSE.electron.txt" "${pkgdir}/opt/${_pkgname}/LICENSES.chromium.html"
+}

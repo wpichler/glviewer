@@ -14,6 +14,7 @@ A fast log viewer for the GNOME desktop (and, through Electron, also Windows and
   The Flatpak runs sandboxed. Opening files as administrator is not available there (see [Packaging](#packaging)).
   GLViewer is not available on Flathub.
 * **Other Linux**: AppImage, `.deb`, `.rpm` or `.tar.gz` (x86_64 and arm64) from the releases page.
+* **Arch Linux**: package files for the AUR (`glviewer-bin`) are in [packaging/aur](packaging/aur).
 * **Windows / macOS**: installer / `.dmg` from the releases page. These builds are unsigned, so the OS will warn before the first start.
 
 ## AI-generated code

@@ -1,0 +1,39 @@
+name: AUR package check
+# Builds packaging/aur/glviewer-bin with makepkg in an Arch Linux container,
+# runs namcap and checks that .SRCINFO is up to date.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['packaging/aur/**']
+  pull_request:
+    paths: ['packaging/aur/**']
+jobs:
+  makepkg:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare build user
+        run: |
+          pacman -Syu --noconfirm namcap
+          useradd -m builder
+          echo 'builder ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/builder
+          cp -r packaging/aur/glviewer-bin /home/builder/pkg
+          chown -R builder: /home/builder/pkg
+      - name: .SRCINFO is up to date
+        run: |
+          cd /home/builder/pkg
+          sudo -u builder makepkg --printsrcinfo > /tmp/srcinfo
+          diff -u .SRCINFO /tmp/srcinfo || { echo "::error::.SRCINFO is out of date: run makepkg --printsrcinfo > .SRCINFO"; exit 1; }
+      - name: namcap (PKGBUILD)
+        run: namcap /home/builder/pkg/PKGBUILD
+      - name: Build and install
+        run: |
+          cd /home/builder/pkg
+          sudo -u builder makepkg -s --noconfirm
+          pacman -U --noconfirm ./glviewer-bin-*.pkg.tar.zst
+          test -x /usr/bin/glviewer
+          test -f /usr/share/applications/io.github.wpichler.GLViewer.desktop
+      - name: namcap (package)
+        run: namcap /home/builder/pkg/glviewer-bin-*.pkg.tar.zst || true
