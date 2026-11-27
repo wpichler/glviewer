@@ -2,13 +2,16 @@
 
 pkgname=glviewer-bin
 _pkgname=glviewer
-pkgver=0.1.2
+pkgver=0.1.3
 pkgrel=1
 pkgdesc='Log viewer for the systemd journal, local log files, remote hosts via SSH and syslog'
 arch=('x86_64' 'aarch64')
 url='https://github.com/wpichler/glviewer'
 license=('MIT')
-depends=('alsa-lib' 'gtk3' 'nss')
+depends=('alsa-lib' 'at-spi2-core' 'cairo' 'dbus' 'expat' 'glib2' 'glibc'
+         'gtk3' 'hicolor-icon-theme' 'libcups' 'libgcc' 'libx11' 'libxcb'
+         'libxcomposite' 'libxdamage' 'libxext' 'libxfixes' 'libxkbcommon'
+         'libxrandr' 'mesa' 'nspr' 'nss' 'pango' 'systemd-libs')
 optdepends=(
   'polkit: open root-only log files and the full journal as administrator'
   'systemd: local journal (journalctl)'
@@ -26,8 +29,8 @@ source_aarch64=("${_pkgname}-${pkgver}-aarch64.tar.gz::https://github.com/wpichl
 sha256sums=('b4a0120c191c737df23f7c696861989d95bc244d5e06dd135dcad2727b051685'
             '7d0fadbb9e5a66eb89045efc90d86897ba1d769043d1515efa334d0052701e8d'
             '48c3425d97be6324da9bfc30cbf53f110bae09410bc70c67c3b36dfd136a1a07')
-sha256sums_x86_64=('3451547268d797441733c611e6817f1cb54ce6429df335f3625488d8a75b5dee')
-sha256sums_aarch64=('a23cd2f67f7af5b05ca1fc184289b13f98b37bfcc4ebe839f470e83ea1b3b893')
+sha256sums_x86_64=('ae20bfb25a636691c4f4ac8706270c215561779f168f3c8f0596674050cc57e4')
+sha256sums_aarch64=('b7f0c340ce7aea32dc6886e5d1fc3818c1c33ece62d20597e63bc8d06eb6931c')
 
 package() {
   local _arch
