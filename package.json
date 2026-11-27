@@ -15,7 +15,8 @@
     "dist:win": "electron-vite build && electron-builder --win",
     "dist:mac": "electron-vite build && electron-builder --mac",
     "dist:dir": "electron-vite build && electron-builder --linux dir",
-    "dist:flatpak": "npm run dist:dir && flatpak run org.flatpak.Builder --user --install --force-clean --disable-rofiles-fuse build-flatpak flatpak/io.github.wpichler.GLViewer.local.yml"
+    "dist:flatpak": "flatpak run org.flatpak.Builder --user --install --force-clean --install-deps-from=flathub build-flatpak flatpak/io.github.wpichler.GLViewer.local.yml",
+    "flatpak:sources": "bash scripts/update-flatpak-sources.sh"
   },
   "dependencies": {
     "chardet": "^2.2.0",

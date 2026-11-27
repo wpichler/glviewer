@@ -38,15 +38,6 @@ jobs:
           # static runtime (no libfuse2), AppStream metainfo, update information + .zsync
           bash scripts/repack-appimage.sh dist/GLViewer-*-linux-x86_64.AppImage x86_64
           bash scripts/repack-appimage.sh dist/GLViewer-*-linux-arm64.AppImage aarch64
-      - name: Keep unpacked x64 build for the Flatpak job
-        if: runner.os == 'Linux'
-        run: tar czf linux-unpacked.tgz -C dist linux-unpacked
-      - if: runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-unpacked
-          path: linux-unpacked.tgz
-          retention-days: 1
       - name: Package (Windows)
         if: runner.os == 'Windows'
         run: npx electron-builder --win nsis --x64 --publish never
@@ -68,10 +59,6 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: linux-unpacked
-      - run: mkdir -p dist && tar xzf linux-unpacked.tgz -C dist
       - name: Install flatpak-builder
         run: |
           sudo apt-get update
@@ -79,7 +66,7 @@ jobs:
           # Ubuntu 24.04 restricts unprivileged user namespaces, which bubblewrap needs
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-      - name: Build bundle
+      - name: Build bundle (from source, offline)
         run: |
           flatpak-builder --user --install-deps-from=flathub --disable-rofiles-fuse --force-clean \
             --repo=repo build flatpak/io.github.wpichler.GLViewer.local.yml

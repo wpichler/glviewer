@@ -8,3 +8,4 @@ build-flatpak/
 .flathub/
 .appimage-tools/
 .flatpak-test/
+.flatpak-repo/

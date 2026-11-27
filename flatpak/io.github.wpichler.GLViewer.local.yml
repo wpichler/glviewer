@@ -1,10 +1,17 @@
-# Local development Flatpak manifest (the Flathub manifest lives in the flathub repo). Packages the electron-builder output (dist/linux-unpacked),
-# so run `npm run dist:dir` first. Build with:
-#   flatpak-builder --user --install --force-clean build-flatpak flatpak/io.github.wpichler.GLViewer.local.yml
+# Flatpak manifest used for the release bundles and local builds. GLViewer is
+# built from source, offline: npm dependencies and the Electron runtime come
+# from generated-sources.json (regenerate after changing package-lock.json:
+#   flatpak-node-generator npm package-lock.json -o flatpak/generated-sources.json).
+# Build with:
+#   flatpak run org.flatpak.Builder --user --install --force-clean --install-deps-from=flathub \
+#     build-flatpak flatpak/io.github.wpichler.GLViewer.local.yml
+# Note: this file is not meant for a Flathub submission (see docs/flatpak-source-build.md).
 app-id: io.github.wpichler.GLViewer
 runtime: org.freedesktop.Platform
 runtime-version: '26.08'
 sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.node22
 base: org.electronjs.Electron2.BaseApp
 base-version: '26.08'
 command: glviewer
@@ -18,11 +25,10 @@ finish-args:
   # SSH: agent socket and read access to ~/.ssh (config, keys, known_hosts)
   - --socket=ssh-auth
   - --filesystem=~/.ssh:ro
-  # local log files
-  - --filesystem=host:ro
+  # /var/log browser and the persistent journal (read with the bundled journalctl);
+  # other files are opened through the file chooser / document portal
   - --filesystem=/var/log:ro
-  # systemd journal, read with the bundled journalctl (persistent and volatile journal)
-  - --filesystem=/var/log/journal:ro
+  # volatile journal (systems without /var/log/journal)
   - --filesystem=/run/log/journal:ro
   - --env=ELECTRON_OZONE_PLATFORM_HINT=auto
 modules:
@@ -49,28 +55,49 @@ modules:
         -Dtests=false -Dman=disabled -Dhtml=disabled -Dtranslations=false
       - export PYTHONPATH="$PWD/py/jinja2/src:$PWD/py/markupsafe/src"; ninja -C _build journalctl
       - install -Dm755 _build/journalctl /app/bin/journalctl
+      # LICENSE.GPL2 / LICENSE.LGPL2.1 are installed by flatpak-builder automatically
+      - mkdir -p /app/share/licenses/io.github.wpichler.GLViewer/journalctl
+      - cp -r LICENSES /app/share/licenses/io.github.wpichler.GLViewer/journalctl/
+
   - name: glviewer
     buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/node22/bin
+      env:
+        XDG_CACHE_HOME: /run/build/glviewer/flatpak-node/cache
+        npm_config_cache: /run/build/glviewer/flatpak-node/npm-cache
+        npm_config_offline: 'true'
+        ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
     sources:
       - type: dir
-        path: ../dist/linux-unpacked
-        dest: app
-      - type: file
-        path: ../resources/icon.png
-      - type: file
-        path: io.github.wpichler.GLViewer.svg
-      - type: file
-        path: io.github.wpichler.GLViewer.desktop
-      - type: file
-        path: io.github.wpichler.GLViewer.metainfo.xml
+        path: ..
+        skip:
+          - node_modules
+          - dist
+          - out
+          - build-flatpak
+          - .flatpak-builder
+          - .flatpak-test
+          - .flathub
+          - .appimage-tools
+          - .flatpak-repo
+      - generated-sources.json
       - type: script
         dest-filename: glviewer.sh
         commands:
           - exec zypak-wrapper /app/glviewer/glviewer "$@"
     build-commands:
-      - cp -a app /app/glviewer
+      # install scripts are not needed: native addons are excluded and the
+      # Electron runtime comes from the offline cache
+      - npm ci --offline --ignore-scripts
+      - npx electron-vite build
+      - . flatpak-node/electron-builder-arch-args.sh;
+        npx electron-builder --linux dir $ELECTRON_BUILDER_ARCH_ARGS --publish never
+      - cp -a dist/linux*-unpacked /app/glviewer
       - install -Dm755 glviewer.sh /app/bin/glviewer
-      - install -Dm644 icon.png /app/share/icons/hicolor/512x512/apps/io.github.wpichler.GLViewer.png
-      - install -Dm644 io.github.wpichler.GLViewer.svg /app/share/icons/hicolor/scalable/apps/io.github.wpichler.GLViewer.svg
-      - install -Dm644 io.github.wpichler.GLViewer.desktop /app/share/applications/io.github.wpichler.GLViewer.desktop
-      - install -Dm644 io.github.wpichler.GLViewer.metainfo.xml /app/share/metainfo/io.github.wpichler.GLViewer.metainfo.xml
+      - install -Dm644 resources/icon.png /app/share/icons/hicolor/512x512/apps/io.github.wpichler.GLViewer.png
+      - install -Dm644 flatpak/io.github.wpichler.GLViewer.svg /app/share/icons/hicolor/scalable/apps/io.github.wpichler.GLViewer.svg
+      - install -Dm644 flatpak/io.github.wpichler.GLViewer.desktop /app/share/applications/io.github.wpichler.GLViewer.desktop
+      - install -Dm644 flatpak/io.github.wpichler.GLViewer.metainfo.xml /app/share/metainfo/io.github.wpichler.GLViewer.metainfo.xml
+      # LICENSE (MIT) is installed by flatpak-builder automatically
+      - install -Dm644 -t /app/share/licenses/io.github.wpichler.GLViewer/electron /app/glviewer/LICENSE.electron.txt /app/glviewer/LICENSES.chromium.html

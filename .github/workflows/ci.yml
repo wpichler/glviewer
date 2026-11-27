@@ -12,6 +12,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Flatpak sources match package-lock.json
+        run: |
+          test "$(sha256sum package-lock.json | cut -d' ' -f1)" = "$(cat flatpak/generated-sources.lock-sha256)" \
+            || { echo "::error::package-lock.json changed: run scripts/update-flatpak-sources.sh"; exit 1; }
       - run: npm ci
       - run: npm run typecheck
       - run: npm test

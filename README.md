@@ -54,13 +54,17 @@ Open files from the command line with `npx electron . file1.log file2.log` (each
 npm run dist:linux   # AppImage, rpm, deb  (rpm needs rpmbuild)
 npm run dist:win     # NSIS installer
 npm run dist:mac     # dmg (on macOS)
-npm run dist:flatpak # local Flatpak build; needs org.flatpak.Builder + org.electronjs.Electron2.BaseApp//26.08 (flathub)
+npm run dist:flatpak # Flatpak built from source, offline; needs org.flatpak.Builder (flathub)
 ```
 
-The Flatpak bundles its own `journalctl` (built from systemd) and reads the journal inside the sandbox, with read-only access to `/var/log/journal` and `/run/log/journal`. It does not request access to the host. This means:
+The Flatpak is built entirely from source and offline: npm dependencies and the Electron runtime come from `flatpak/generated-sources.json`. After changing dependencies run `npm run flatpak:sources`; CI fails if the file is out of date. It also bundles its own `journalctl` (built from systemd) and reads the journal inside the sandbox.
 
-* You see the system journal if your user may read it outside the sandbox too: on most distributions, members of `wheel`, `adm` or `systemd-journal`. Otherwise you see your own user journal.
-* "As administrator" (`pkexec`) is not available. To enable it, allow GLViewer to talk to `org.freedesktop.Flatpak` (e.g. with Flatseal). Then `pkexec` runs on the host. The AppImage and distribution packages have no such limitation.
+Flatpak permissions, all read-only except network:
+
+* `/var/log` (log browser and persistent journal), `/run/log/journal` (volatile journal), `~/.ssh` (SSH config, `known_hosts`, keys), plus network, SSH agent and display.
+* Other files are opened through the file chooser, drag & drop or "Open with" (document portal), not with general file system access.
+* No access to the host system. You see the system journal if your user may read it outside the sandbox too: on most distributions, members of `wheel`, `adm` or `systemd-journal`. Otherwise you see your own user journal.
+* "As administrator" (`pkexec`) is not available. To enable it, allow GLViewer to talk to `org.freedesktop.Flatpak` (e.g. with Flatseal). The AppImage and distribution packages have no such limitation.
 
 ## Layout
 
